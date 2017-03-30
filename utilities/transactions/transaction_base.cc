@@ -263,6 +263,12 @@ Status TransactionBaseImpl::Put(ColumnFamilyHandle* column_family,
 
   if (s.ok()) {
     GetBatchForWrite()->Put(column_family, key, value);
+    // Step 4.2 write to memtable with ::Put
+    WriteOptions write_options_with_no_wal = write_options_;
+    // disable WAL to emualte the future optimization that we do not wait for
+    // WAL to be synced
+    write_options_with_no_wal.disableWAL = true;
+    s = db_->Put(write_options_with_no_wal, key, value);
     num_puts_++;
   }
 
