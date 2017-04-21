@@ -7,7 +7,7 @@
 #include "monitoring/perf_step_timer.h"
 #include "rocksdb/iostats_context.h"
 
-#ifndef IOS_CROSS_COMPILE
+#ifdef ROCKSDB_SUPPORT_THREAD_LOCAL
 
 // increment a specific counter by the specified value
 #define IOSTATS_ADD(metric, value)     \
@@ -39,7 +39,7 @@
   PerfStepTimer iostats_step_timer_ ## metric(&(iostats_context.metric));  \
   iostats_step_timer_ ## metric.Start();
 
-#else  // IOS_CROSS_COMPILE
+#else  // ROCKSDB_SUPPORT_THREAD_LOCAL
 
 #define IOSTATS_ADD(metric, value)
 #define IOSTATS_ADD_IF_POSITIVE(metric, value)
@@ -51,4 +51,4 @@
 
 #define IOSTATS_TIMER_GUARD(metric)
 
-#endif  // IOS_CROSS_COMPILE
+#endif  // ROCKSDB_SUPPORT_THREAD_LOCAL

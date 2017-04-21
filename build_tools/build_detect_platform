@@ -438,6 +438,15 @@ elif test "$USE_SSE"; then
     echo "warning: USE_SSE specified but compiler could not use SSE intrinsics, disabling"
 fi
 
+$CXX $COMMON_FLAGS -x c++ - -o /dev/null 2>/dev/null <<EOF
+  int main() {
+    static __thread int tls;
+  }
+EOF
+if [ "$?" = 0 ]; then
+    COMMON_FLAGS="$COMMON_FLAGS -DROCKSDB_SUPPORT_THREAD_LOCAL"
+fi
+
 PLATFORM_CCFLAGS="$PLATFORM_CCFLAGS $COMMON_FLAGS"
 PLATFORM_CXXFLAGS="$PLATFORM_CXXFLAGS $COMMON_FLAGS"
 
