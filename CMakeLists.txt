@@ -106,20 +106,36 @@ if(NOT WIN32)
   string(STRIP "${ROCKSDB_VERSION_MAJOR}" ROCKSDB_VERSION_MAJOR)
 endif()
 
-if(WIN32)
-  option(WITH_AVX2 "build with AVX2" ON)
-  if(WITH_AVX2)
-    if(MSVC)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
-    else()
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
-    endif()
-  endif()
-else()
-  option(WITH_SSE42 "build with SSE4.2" ON)
-  if(WITH_SSE42)
+option(PORTABLE "build a portable binary" OFF)
+option(FORCE_SSE42 "force building with SSE4.2, even when PORTABLE=ON" OFF)
+if(PORTABLE)
+  if(FORCE_SSE42 AND NOT MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2")
   endif()
+  # MSVC does not need a separate compiler flag to enable SSE4.2; if nmmintrin.h
+  # is available, it is available by default.
+else()
+  if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
+  else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+  endif()
+endif()
+
+set(OLD_CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
+set(CMAKE_REQUIRED_FLAGS ${CMAKE_CXX_FLAGS})
+include(CheckCXXSourceCompiles)
+CHECK_CXX_SOURCE_COMPILES("
+#include <nmmintrin.h>
+int main() {
+  volatile uint32_t x = _mm_crc32_u32(0, 0);
+}
+  " HAVE_SSE42)
+set(CMAKE_REQUIRED_FLAGS ${OLD_CMAKE_REQUIRED_FLAGS})
+if(HAVE_SSE42)
+  add_definitions(-DHAVE_SSE42)
+elseif(FORCE_SSE42)
+  message(FATAL_ERROR "FORCE_SSE42=ON but unable to compile with SSE4.2 enabled")
 endif()
 
 set(BUILD_VERSION_CC ${CMAKE_BINARY_DIR}/build_version.cc)
