@@ -649,6 +649,8 @@ class DBImpl : public DB {
                               const MutableCFOptions& mutable_cf_options,
                               int job_id, TableProperties prop);
 
+  void NotifyOnCompactionBegin(ColumnFamilyData* cfd, Compaction *c,
+                               int job_id);
   void NotifyOnCompactionCompleted(ColumnFamilyData* cfd,
                                    Compaction *c, const Status &st,
                                    const CompactionJobStats& job_stats,
