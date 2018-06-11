@@ -1172,17 +1172,15 @@ Status CompactionJob::FinishCompactionOutputFile(
     }
   }
   std::string fname;
-  FileDescriptor output_fd;
   if (meta != nullptr) {
     fname = TableFileName(db_options_.db_paths, meta->fd.GetNumber(),
                           meta->fd.GetPathId());
-    output_fd = meta->fd;
   } else {
     fname = "(nil)";
   }
   EventHelpers::LogAndNotifyTableFileCreationFinished(
       event_logger_, cfd->ioptions()->listeners, dbname_, cfd->GetName(), fname,
-      job_id_, output_fd, tp, TableFileCreationReason::kCompaction, s);
+      job_id_, meta, tp, TableFileCreationReason::kCompaction, s);
 
 #ifndef ROCKSDB_LITE
   // Report new file to SstFileManagerImpl
@@ -1302,7 +1300,7 @@ Status CompactionJob::OpenCompactionOutputFile(
     LogFlush(db_options_.info_log);
     EventHelpers::LogAndNotifyTableFileCreationFinished(
         event_logger_, cfd->ioptions()->listeners, dbname_, cfd->GetName(),
-        fname, job_id_, FileDescriptor(), TableProperties(),
+        fname, job_id_, nullptr, TableProperties(),
         TableFileCreationReason::kCompaction, s);
     return s;
   }

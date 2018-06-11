@@ -51,6 +51,13 @@ struct TableFileCreationInfo : public TableFileCreationBriefInfo {
   uint64_t file_size;
   // Detailed properties of the created file.
   TableProperties table_properties;
+
+  Slice smallest_key;
+  Slice largest_key;
+  SequenceNumber smallest_seqno;
+  SequenceNumber largest_seqno;
+  bool marked_for_compaction;
+
   // The status indicating whether the creation was successful or not.
   Status status;
 };

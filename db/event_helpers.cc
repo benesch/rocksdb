@@ -59,7 +59,7 @@ void EventHelpers::LogAndNotifyTableFileCreationFinished(
     EventLogger* event_logger,
     const std::vector<std::shared_ptr<EventListener>>& listeners,
     const std::string& db_name, const std::string& cf_name,
-    const std::string& file_path, int job_id, const FileDescriptor& fd,
+    const std::string& file_path, int job_id, const FileMetaData* meta,
     const TableProperties& table_properties, TableFileCreationReason reason,
     const Status& s) {
   if (s.ok() && event_logger) {
@@ -67,8 +67,8 @@ void EventHelpers::LogAndNotifyTableFileCreationFinished(
     AppendCurrentTime(&jwriter);
     jwriter << "cf_name" << cf_name << "job" << job_id << "event"
             << "table_file_creation"
-            << "file_number" << fd.GetNumber() << "file_size"
-            << fd.GetFileSize();
+            << "file_number" << meta->fd.GetNumber() << "file_size"
+            << meta->fd.GetFileSize();
 
     // table_properties
     {
@@ -109,10 +109,15 @@ void EventHelpers::LogAndNotifyTableFileCreationFinished(
   info.db_name = db_name;
   info.cf_name = cf_name;
   info.file_path = file_path;
-  info.file_size = fd.file_size;
+  info.file_size = meta->fd.file_size;
   info.job_id = job_id;
   info.table_properties = table_properties;
   info.reason = reason;
+  info.smallest_key = meta->smallest.user_key();
+  info.largest_key = meta->largest.user_key();
+  info.smallest_seqno = meta->smallest_seqno;
+  info.largest_seqno = meta->largest_seqno;
+  info.marked_for_compaction = meta->marked_for_compaction;
   info.status = s;
   for (auto& listener : listeners) {
     listener->OnTableFileCreated(info);
