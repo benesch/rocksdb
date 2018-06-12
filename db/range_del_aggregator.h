@@ -23,6 +23,69 @@
 
 namespace rocksdb {
 
+// A TombstoneStripe tracks the range deletion tombstones in a single snapshot
+// stripe. It is used internally by the RangeDelAggregator; it is not otherwise
+// intended to be used.
+class TombstoneStripe {
+ public:
+  TombstoneStripe(const Comparator* user_comparator, bool collapsed);
+  TombstoneStripe(const TombstoneStripe&) = delete;
+
+  // AddTombstone adds a new range deletion tombstone to this stripe.
+  //
+  // Any existing iterators that were created by NewIterator must be destroyed
+  // and recreated after calling AddTombstone.
+  void AddTombstone(RangeTombstone tombstone);
+
+  // Creates an iterator over all tombstones in this stripe.
+  Iterator* NewIterator();
+
+ private:
+  const Comparator* ucmp_;
+
+  // Whether to collapse overlapping tombstones. Certain features, like seeking
+  // an iterator, require collapsed mode.
+  bool collapsed_;
+
+  // Map from tombstone user start key -> tombstone object.
+  std::multimap<Slice, RangeTombstone, stl_wrappers::LessOfComparator>
+    tombstones_;
+};
+
+  // // Also maintains position in TombstoneMap last seen by ShouldDelete(). The
+  // // end iterator indicates invalidation (e.g., if AddTombstones() changes the
+  // // underlying map). End iterator cannot be invalidated.
+
+  // // A Stripe tracks the tombstones that belong to one snapshot stripe.
+  // //
+  // //
+  // class Stripe {
+  //  public:
+  //   Stripe(const Comparator* user_comparator, bool collapse_deletions);
+  //   Stripe(const Stripe&) = delete;
+  //   Stripe(Stripe&& other) = delete;
+
+  //   void AddTombstone(RangeTombstone tombstone);
+  //   bool Empty() const;
+  //   size_t Size() const;
+  //   bool Valid() const;
+  //   void SeekToFirst();
+  //   void Seek(const Slice& target);
+  //   void Prev();
+  //   void Next();
+  //   RangeTombstone Tombstone();
+
+  //  private:
+  //    // Maps tombstone user start key -> tombstone object
+  //   typedef std::multimap<Slice, RangeTombstone, stl_wrappers::LessOfComparator>
+  //     TombstoneMap;
+
+  //   const Comparator* ucmp_;
+  //   bool collapse_deletions_;
+  //   TombstoneMap raw_map_;
+  //   TombstoneMap::const_iterator iter_;
+  // };
+
 // A RangeDelAggregator aggregates range deletion tombstones as they are
 // encountered in memtables/SST files. It provides methods that check whether a
 // key is covered by range tombstones or write the relevant tombstones to a new
@@ -144,26 +207,9 @@ class RangeDelAggregator {
   bool AddFile(uint64_t file_number);
 
  private:
-  // Maps tombstone user start key -> tombstone object
-  typedef std::multimap<Slice, RangeTombstone, stl_wrappers::LessOfComparator>
-      TombstoneMap;
-  // Also maintains position in TombstoneMap last seen by ShouldDelete(). The
-  // end iterator indicates invalidation (e.g., if AddTombstones() changes the
-  // underlying map). End iterator cannot be invalidated.
-  struct PositionalTombstoneMap {
-    explicit PositionalTombstoneMap(TombstoneMap _raw_map)
-        : raw_map(std::move(_raw_map)), iter(raw_map.end()) {}
-    PositionalTombstoneMap(const PositionalTombstoneMap&) = delete;
-    PositionalTombstoneMap(PositionalTombstoneMap&& other)
-        : raw_map(std::move(other.raw_map)), iter(raw_map.end()) {}
-
-    TombstoneMap raw_map;
-    TombstoneMap::const_iterator iter;
-  };
-
   // Maps snapshot seqnum -> map of tombstones that fall in that stripe, i.e.,
   // their seqnums are greater than the next smaller snapshot's seqnum.
-  typedef std::map<SequenceNumber, PositionalTombstoneMap> StripeMap;
+  typedef std::map<SequenceNumber, TombstoneStripe> StripeMap;
 
   struct Rep {
     StripeMap stripe_map_;
@@ -175,8 +221,7 @@ class RangeDelAggregator {
   // once the first range deletion is encountered.
   void InitRep(const std::vector<SequenceNumber>& snapshots);
 
-  PositionalTombstoneMap& GetPositionalTombstoneMap(SequenceNumber seq);
-  Status AddTombstone(RangeTombstone tombstone);
+  TombstoneStripe& GetStripe(SequenceNumber seq);
 
   SequenceNumber upper_bound_;
   std::unique_ptr<Rep> rep_;
