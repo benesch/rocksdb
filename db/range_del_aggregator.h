@@ -23,6 +23,24 @@
 
 namespace rocksdb {
 
+// class TombstoneMapComparator {
+//  public:
+//   TombstoneMapComparator(const Comparator* user_comparator)
+//       : ucmp_(user_comparator) {};
+
+//   bool operator()(TombstoneMap* a, TombstoneMap* b) const {
+//     RangeTombstone at = a->Tombstone();
+//     RangeTombstone bt = b->Tombstone();
+//     int c = ucmp_->Compare(at.start_key_, bt.start_key_);
+//     if (c != 0) {
+//       return c;
+//     }
+//     return ucmp_->Compare(at.end_key_, bt.end_key_);
+//   }
+//   private:
+//   const Comparator* ucmp_;
+// };
+
 // A RangeDelAggregator aggregates range deletion tombstones as they are
 // encountered in memtables/SST files. It provides methods that check whether a
 // key is covered by range tombstones or write the relevant tombstones to a new
@@ -146,7 +164,7 @@ class RangeDelAggregator {
  private:
   // Maps tombstone user start key -> tombstone object
   typedef std::multimap<Slice, RangeTombstone, stl_wrappers::LessOfComparator>
-      TombstoneMap;
+    TombstoneMap;
   // Also maintains position in TombstoneMap last seen by ShouldDelete(). The
   // end iterator indicates invalidation (e.g., if AddTombstones() changes the
   // underlying map). End iterator cannot be invalidated.
@@ -183,6 +201,26 @@ class RangeDelAggregator {
   const InternalKeyComparator& icmp_;
   // collapse range deletions so they're binary searchable
   const bool collapse_deletions_;
+
+ public:
+  class Iterator {
+   public:
+    bool Valid() const;
+    Status Status() const;
+    void Next();
+    RangeTombstone Tombstone();
+
+   private:
+    friend class RangeDelAggregator;
+    Iterator(Rep* rep, bool bottommost_level, CompactionIterationStats* stats);
+
+    Rep* rep_;
+    bool bottommost_level_;
+    CompactionIterationStats* stats_;
+    // BinaryHeap<RangeTombstone, RangeTombstone::MinComparator> heap_;
+  };
+
+  Iterator* NewIterator(bool bottommost_level, CompactionIterationStats* stats);
 };
 
 }  // namespace rocksdb

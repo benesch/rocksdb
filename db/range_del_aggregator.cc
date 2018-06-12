@@ -547,4 +547,21 @@ bool RangeDelAggregator::AddFile(uint64_t file_number) {
   return rep_->added_files_.emplace(file_number).second;
 }
 
+RangeDelAggregator::Iterator* RangeDelAggregator::NewIterator(
+    bool bottommost_level, CompactionIterationStats* stats) {
+  // The iterator presents tombstones in sorted order which requires the
+  // collapsed tombstone representation.
+  assert(collapse_deletions_);
+
+  return new Iterator(rep_.get(), bottommost_level, stats);
+}
+
+RangeDelAggregator::Iterator::Iterator(Rep* rep, bool bottommost_level,
+                                       CompactionIterationStats* stats)
+    : rep_(rep),
+      bottommost_level_(bottommost_level),
+      stats_(stats) {
+
+}
+
 }  // namespace rocksdb
